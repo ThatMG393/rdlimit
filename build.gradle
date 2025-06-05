@@ -1,93 +1,79 @@
 plugins {
     id 'java-library'
-    id 'net.neoforged.moddev' version '2.0.89'
+    id 'net.neoforged.gradle.userdev' version '7.0.184'
 }
 
 version = mod_version
 group = mod_group_id
 base.archivesName = mod_id
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 repositories {
     mavenLocal()
+
+    maven {
+        name = 'FzzyMaven'
+        url = 'https://maven.fzzyhmstrs.me'
+    }
+
+    maven {
+        url = 'https://thedarkcolour.github.io/KotlinForForge'
+    }
 }
 
 dependencies {
+    implementation "net.neoforged:neoforge:${neo_version}"
+
+    implementation("me.fzzyhmstrs:fzzy_config:${fzzy_config_version}")
 }
 
-neoForge {
-    version = project.neo_version
+runs {
+    configureEach {
+        systemProperty 'forge.logging.markers', 'REGISTRIES'
+        systemProperty 'forge.logging.console.level', 'debug'
 
-    parchment {
-        mappingsVersion = project.parchment_mappings_version
-        minecraftVersion = project.parchment_minecraft_version
+        modSource project.sourceSets.main
     }
 
-    runs {
-        client {
-            client()
-            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
-        }
-
-        server {
-            server()
-            programArgument '--nogui'
-            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
-        }
-        
-        gameTestServer {
-            type = "gameTestServer"
-            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
-        }
-
-        data {
-            data()
-            programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
-        }
-
-        configureEach {
-            systemProperty 'forge.logging.markers', 'REGISTRIES'
-            logLevel = org.slf4j.event.Level.DEBUG
-        }
+    server {
+        argument '--no-gui'
     }
 
-    mods {
-        "${mod_id}" {
-            sourceSet(sourceSets.main)
-        }
+    data {
+        arguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
     }
 }
 
-var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+tasks.withType(ProcessResources).configureEach {
     var replaceProperties = [
-            minecraft_version      : minecraft_version,
-            minecraft_version_range: minecraft_version_range,
-            neo_version            : neo_version,
-            neo_version_range      : neo_version_range,
-            loader_version_range   : loader_version_range,
-            
-            mod_id                 : mod_id,
-            mod_name               : mod_name,
-            mod_license            : mod_license,
-            mod_version            : mod_version,
-            mod_authors            : mod_authors,
-            mod_description        : mod_description
+            minecraft_version         : minecraft_version,
+            minecraft_version_range   : minecraft_version_range,
+            neo_version               : neo_version,
+            neo_version_range         : neo_version_range,
+            loader_version_range      : loader_version_range,
+        
+            mod_id                    : mod_id,
+            mod_name                  : mod_name,
+            mod_license               : mod_license,
+            mod_version               : mod_version,
+            mod_authors               : mod_authors,
+            mod_description           : mod_description,
+        
+            fzzy_config_version_range : fzzy_config_version_range
     ]
-
+    
     inputs.properties replaceProperties
-    expand replaceProperties
 
-    from "src/main/templates"
-    into "build/generated/sources/modMetadata"
+    filesMatching(['META-INF/neoforge.mods.toml']) {
+        expand replaceProperties
+    }
 }
 
-sourceSets.main.resources.srcDir 'src/generated/resources'
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+sourceSets.main.resources.srcDir 'src/generated/resources' }
 configurations { runtimeClasspath.extendsFrom localRuntime }
-sourceSets.main.resources.srcDir generateModMetadata
-neoForge.ideSyncTask generateModMetadata
 
 tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+    options.encoding = 'UTF-8'
 }
 
 tasks.named('wrapper', Wrapper).configure {
